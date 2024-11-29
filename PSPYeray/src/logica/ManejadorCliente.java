@@ -14,9 +14,9 @@ class ManejadorCliente implements Runnable {
 
     // Bloque estático para inicializar usuarios base
     static {
-        usuarios.add(new Usuario("Juan", "Perez", 25, "juan@example.com", "juan123", "password123"));
-        usuarios.add(new Usuario("Ana", "Garcia", 30, "ana@example.com", "ana123", "password456"));
-        usuarios.add(new Usuario("Luis", "Martinez", 22, "luis@example.com", "luis123", "password789"));
+        usuarios.add(new Usuario("Juan", "Perez", 25, "juan@example.com", "juan", "Juan123!"));
+        usuarios.add(new Usuario("Ana", "Garcia", 30, "ana@example.com", "ana", "Ana123!"));
+        usuarios.add(new Usuario("Luis", "Martinez", 22, "luis@example.com", "luis", "Luis123!"));
     }
 
     public ManejadorCliente(Socket socket) {
