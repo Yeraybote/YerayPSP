@@ -11,7 +11,7 @@ import java.io.IOException;
 
 public class RegisterView extends JFrame {
 
-    public RegisterView() {
+    public RegisterView() throws Exception {
         // Configuración de la ventana principal
         setTitle("Registro de Usuario");
         setSize(400, 400);
@@ -62,7 +62,11 @@ public class RegisterView extends JFrame {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 // Lógica para abrir la vista de inicio de sesión
-                new LoginView().setVisible(true);
+                try {
+                    new LoginView().setVisible(true);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
                 dispose(); // Cierra la ventana actual
             }
         });
@@ -199,7 +203,11 @@ public class RegisterView extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new RegisterView().setVisible(true);
+            try {
+                new RegisterView().setVisible(true);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 }

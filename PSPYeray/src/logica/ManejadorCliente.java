@@ -1,16 +1,17 @@
 package logica;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import logica.firma.Verificador;
+
+import java.io.*;
 import java.net.Socket;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 
 class ManejadorCliente implements Runnable {
     private final Socket socket;
     private static final List<Usuario> usuarios = new ArrayList<>();
+    private static int contadorIncidencias = 1;
 
     // Bloque estático para inicializar usuarios base
     static {
@@ -25,38 +26,69 @@ class ManejadorCliente implements Runnable {
 
     @Override
     public void run() {
-        try (BufferedReader entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter salida = new PrintWriter(socket.getOutputStream(), true)) {
+        while (!socket.isClosed()) {
 
-            String mensaje;
-            while ((mensaje = entrada.readLine()) != null) {
-                System.out.println("Mensaje recibido: " + mensaje);
-                String[] partes = mensaje.split(";");
+        try (
+                BufferedReader textoEntrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter salida = new PrintWriter(socket.getOutputStream(), true);
+                ObjectInputStream entradaObjetos = new ObjectInputStream(socket.getInputStream())
+        ) {
+            // Leer el comando inicial del cliente
+            String comando = textoEntrada.readLine();
 
-                if (partes[0].equals("LOGIN")) {
-                    String usuario = partes[1];
-                    String password = partes[2];
-                    if (validarLogin(usuario, password)) {
-                        salida.println("Inicio de sesión exitoso para " + usuario);
-                    } else {
-                        salida.println("Usuario o contraseña incorrectos");
-                    }
+            if (comando.equals("LOGIN")) {
+                // Procesar login
+                String usuario = textoEntrada.readLine();
+                String password = textoEntrada.readLine();
 
-                } else if (partes[0].equals("REGISTER")) {
-                    String name = partes[1];
-                    String lastName = partes[2];
-                    int age = Integer.parseInt(partes[3]);
-                    String email = partes[4];
-                    String user = partes[5];
-                    String password = partes[6];
-
-                    if (registrarUsuario(name, lastName, age, email, user, password)) {
-                        salida.println("Registro exitoso para " + user);
-                    } else {
-                        salida.println("El usuario ya existe o los datos no son válidos");
-                    }
+                if (validarLogin(usuario, password)) {
+                    salida.println("LOGIN_OK");
                 } else {
-                    salida.println("Comando desconocido");
+                    salida.println("Usuario o contraseña incorrectos");
+                }
+
+            } else if (comando.equals("REGISTER")) {
+                // Procesar registro
+                String name = textoEntrada.readLine();
+                String lastName = textoEntrada.readLine();
+                int age = Integer.parseInt(textoEntrada.readLine());
+                String email = textoEntrada.readLine();
+                String user = textoEntrada.readLine();
+                String password = textoEntrada.readLine();
+
+                if (registrarUsuario(name, lastName, age, email, user, password)) {
+                    salida.println("REGISTRO_OK");
+                } else {
+                    salida.println("El usuario ya existe o los datos no son válidos");
+                }
+
+            } else {
+                // Procesar incidencia y firma
+                try {
+                    Incidencia incidencia = (Incidencia) entradaObjetos.readObject(); // Leer incidencia
+                    String firma = (String) entradaObjetos.readObject();             // Leer firma digital
+
+                    if (verificarFirmaIncidencia(incidencia, firma, incidencia.getCliente())) {
+                        // Generar código único y clasificar la incidencia
+                        String codigo = generarCodigoUnico();
+                        String clasificacion = clasificarIncidencia(incidencia.getDescripcion());
+
+                        // Registrar o imprimir incidencia (según tus necesidades)
+                        System.out.println("Incidencia registrada:");
+                        System.out.println("Código: " + codigo);
+                        System.out.println("Clasificación: " + clasificacion);
+                        System.out.println("Descripción: " + incidencia.getDescripcion());
+
+                        // Enviar respuesta al cliente
+                        salida.println("INCIDENCIA_OK;" + codigo + ";" + clasificacion);
+                    } else {
+                        // Firma inválida, notificar al cliente
+                        System.out.println("Firma inválida. Incidencia rechazada.");
+                        salida.println("FIRMA_INVALIDA");
+                    }
+                } catch (ClassNotFoundException e) {
+                    System.err.println("Error al procesar incidencia: " + e.getMessage());
+                    salida.println("ERROR_PROCESANDO_INCIDENCIA");
                 }
             }
 
@@ -69,7 +101,30 @@ class ManejadorCliente implements Runnable {
                 System.err.println("Error al cerrar el socket: " + e.getMessage());
             }
         }
+
+        }
     }
+
+    private String clasificarIncidencia(String descripcion) {
+        String descripcionLower = descripcion.toLowerCase();
+
+        if (descripcionLower.contains("urgente") || descripcionLower.contains("crítico") || descripcionLower.contains("falla grave")) {
+            return "Urgente";
+        } else if (descripcionLower.contains("problema") || descripcionLower.contains("error") || descripcionLower.contains("fallo")) {
+            return "Moderada";
+        } else if (descripcionLower.contains("consulta") || descripcionLower.contains("revisión") || descripcionLower.contains("sugerencia")) {
+            return "Leve";
+        }
+
+        return "Sin clasificar"; // Por defecto, si no se encuentra ninguna palabra clave
+    }
+
+    private String generarCodigoUnico() {
+        String codigo = "INC-" + contadorIncidencias;
+        contadorIncidencias++;
+        return codigo;
+    }
+
 
     // Metodo para validar el login
     private boolean validarLogin(String usuario, String passwordCifrada) {
@@ -98,5 +153,21 @@ class ManejadorCliente implements Runnable {
         // Agregar el nuevo usuario
         usuarios.add(new Usuario(name, lastName, age, email, user, password));
         return true;
+    }
+
+    private boolean verificarFirmaIncidencia(Incidencia incidencia, String firma, Cliente cliente) {
+        try {
+            // Obtener clave pública del empleado
+            PublicKey clavePublica = cliente.getClavePublica();
+
+            // Serializar la incidencia para verificar la firma
+            String incidenciaSerializada = incidencia.toString();
+
+            // Verificar la firma
+            return Verificador.verificarFirma(incidenciaSerializada, firma, clavePublica);
+        } catch (Exception e) {
+            System.err.println("Error al verificar firma de incidencia: " + e.getMessage());
+            return false;
+        }
     }
 }

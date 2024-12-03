@@ -11,7 +11,7 @@ import java.io.IOException;
 
 public class LoginView extends JFrame {
 
-    public LoginView() {
+    public LoginView() throws Exception {
         // Configuración de la ventana principal
         setTitle("Inicio de Sesión");
         setSize(400, 300);
@@ -51,7 +51,11 @@ public class LoginView extends JFrame {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 // Lógica para abrir la vista de registro
-                new RegisterView().setVisible(true);
+                try {
+                    new RegisterView().setVisible(true);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
                 dispose(); // Cierra la ventana actual
             }
         });
@@ -103,7 +107,14 @@ public class LoginView extends JFrame {
 
                 // Respuesta del servidor
                 String respuesta = cliente.recibirRespuesta();
-                JOptionPane.showMessageDialog(this, respuesta);
+                if (respuesta.equals("LOGIN_OK")) {
+                    JOptionPane.showMessageDialog(this, "Inicio de sesión exitoso.");
+                    // Lógica para abrir la vista de incidencias
+                    new IncidenciasView(usuario, cliente).setVisible(true);
+                    dispose(); // Cierra la ventana actual
+                } else {
+                    JOptionPane.showMessageDialog(this, respuesta);
+                }
 
                 cliente.cerrarConexion();
 
@@ -120,7 +131,11 @@ public class LoginView extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new LoginView().setVisible(true);
+            try {
+                new LoginView().setVisible(true);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 }
