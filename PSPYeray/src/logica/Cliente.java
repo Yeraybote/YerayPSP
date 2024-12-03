@@ -1,5 +1,6 @@
 package logica;
 
+import logica.firma.Firmador;
 import logica.firma.GeneradorClaves;
 
 import java.io.*;
@@ -50,12 +51,22 @@ public class Cliente {
         if (socket != null) socket.close();
     }
 
-    public static void enviarIncidencia(Incidencia incidencia, String firma, String servidor, int puerto) throws Exception {
+    public static void enviarIncidencia(Incidencia incidencia, String servidor, int puerto, PrivateKey clavePrivada) throws Exception {
         try (Socket socket = new Socket(servidor, puerto);
              ObjectOutputStream salida = new ObjectOutputStream(socket.getOutputStream())) {
-            salida.writeObject(incidencia); // Enviar la incidencia
-            salida.writeObject(firma); // Enviar la firma digital
+
+            // Enviar el comando de incidencia
+            salida.writeObject("INCIDENCIA");
+
+            // Firmar la incidencia
+            String incidenciaSerializada = incidencia.toString();
+            String firma = Firmador.firmarMensaje(incidenciaSerializada, clavePrivada);
+
+            // Enviar la incidencia y la firma al servidor
+            salida.writeObject(incidencia);
+            salida.writeObject(firma);
         }
     }
+
 
 }

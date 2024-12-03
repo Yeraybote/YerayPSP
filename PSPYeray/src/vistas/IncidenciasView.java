@@ -89,10 +89,10 @@ public class IncidenciasView extends JFrame {
 
                     // Serializar y firmar la incidencia
                     String incidenciaSerializada = incidencia.toString();
-                    String firma = Firmador.firmarMensaje(incidenciaSerializada, cliente.getClavePrivada());
+                    //String firma = Firmador.firmarMensaje(incidenciaSerializada, cliente.getClavePrivada());
 
                     // Enviar incidencia al servidor
-                    Cliente.enviarIncidencia(incidencia, firma, "localhost", 12345);
+                    Cliente.enviarIncidencia(incidencia, "localhost", 12345, cliente.getClavePrivada());
 
                     // Recibir respuesta del servidor
                     String respuesta = cliente.recibirRespuesta();
