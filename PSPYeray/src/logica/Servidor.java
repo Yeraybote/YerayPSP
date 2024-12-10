@@ -16,8 +16,9 @@ public class Servidor {
         try (ServerSocket serverSocket = new ServerSocket(PUERTO)) {
             while (true) {
                 Socket clienteSocket = serverSocket.accept();
+                RepositorioClavesPublicas repositorioClaves = new RepositorioClavesPublicas();
                 System.out.println("Cliente conectado: " + clienteSocket.getInetAddress());
-                pool.execute(new ManejadorCliente(clienteSocket));
+                pool.execute(new ManejadorCliente(clienteSocket, repositorioClaves));
             }
         } catch (IOException e) {
             System.err.println("Error en el servidor: " + e.getMessage());

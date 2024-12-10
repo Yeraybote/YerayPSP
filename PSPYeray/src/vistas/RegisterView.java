@@ -1,17 +1,15 @@
 package vistas;
 
 import logica.Cliente;
-import logica.UtilidadCifrado;
+import logica.RegisterRequest;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 
 public class RegisterView extends JFrame {
 
-    public RegisterView() {
+    public RegisterView() throws Exception {
         // Configuración de la ventana principal
         setTitle("Registro de Usuario");
         setSize(400, 400);
@@ -61,8 +59,11 @@ public class RegisterView extends JFrame {
         loginLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                // Lógica para abrir la vista de inicio de sesión
-                new LoginView().setVisible(true);
+                try {
+                    new LoginView().setVisible(true);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, "Error al abrir la vista de inicio de sesión: " + ex.getMessage());
+                }
                 dispose(); // Cierra la ventana actual
             }
         });
@@ -94,95 +95,50 @@ public class RegisterView extends JFrame {
         // Añadir panel principal a la ventana
         add(mainPanel);
 
-        // Parte del código en RegisterView
+        // Instanciar cliente
         Cliente cliente = new Cliente("localhost", 12345);
 
+        // Acción para el botón de registro
         registerButton.addActionListener(e -> {
             try {
                 // Recoger los valores de los campos
                 String nombre = nameField.getText().trim();
                 String apellido = lastNameField.getText().trim();
-                String edad = ageField.getText().trim();
+                String edadStr = ageField.getText().trim();
                 String email = emailField.getText().trim();
                 String usuario = userField.getText().trim();
                 String password = new String(passField.getPassword()).trim();
 
                 // Validaciones
-                if (nombre.isEmpty() || apellido.isEmpty() || edad.isEmpty() || email.isEmpty() || usuario.isEmpty() || password.isEmpty()) {
+                if (nombre.isEmpty() || apellido.isEmpty() || edadStr.isEmpty() || email.isEmpty() || usuario.isEmpty() || password.isEmpty()) {
                     JOptionPane.showMessageDialog(this, "Todos los campos son obligatorios.");
                     return;
                 }
 
-                if (!nombre.matches("^[a-zA-Z ]+$")) {
-                    JOptionPane.showMessageDialog(this, "El nombre solo puede contener letras y espacios.");
-                    return;
-                }
-
-                if (!apellido.matches("^[a-zA-Z ]+$")) {
-                    JOptionPane.showMessageDialog(this, "El apellido solo puede contener letras y espacios.");
-                    return;
-                }
-
-                if (!edad.matches("\\d+")) {
+                if (!edadStr.matches("\\d+")) {
                     JOptionPane.showMessageDialog(this, "La edad debe ser un número válido.");
                     return;
                 }
 
-                int edadInt = Integer.parseInt(edad);
-                if (edadInt < 18 || edadInt > 100) {
+                int edad = Integer.parseInt(edadStr);
+                if (edad < 18 || edad > 100) {
                     JOptionPane.showMessageDialog(this, "La edad debe estar entre 18 y 100 años.");
                     return;
                 }
 
-                if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
-                    JOptionPane.showMessageDialog(this, "El email no tiene un formato válido.");
-                    return;
-                }
+                // Crear objeto RegisterRequest
+                RegisterRequest registro = new RegisterRequest(nombre, apellido, edad, email, usuario, password);
 
-                if (usuario.length() < 4 || usuario.length() > 15) {
-                    JOptionPane.showMessageDialog(this, "El usuario debe tener entre 4 y 15 caracteres.");
-                    return;
-                }
-
-                if (!usuario.matches("^[a-zA-Z0-9_]+$")) {
-                    JOptionPane.showMessageDialog(this, "El usuario solo puede contener letras, números y guiones bajos.");
-                    return;
-                }
-
-                if (password.length() < 6) {
-                    JOptionPane.showMessageDialog(this, "La contraseña debe tener al menos 6 caracteres.");
-                    return;
-                }
-
-                if (!password.matches(".*[A-Z].*")) {
-                    JOptionPane.showMessageDialog(this, "La contraseña debe contener al menos una letra mayúscula.");
-                    return;
-                }
-
-                if (!password.matches(".*[a-z].*")) {
-                    JOptionPane.showMessageDialog(this, "La contraseña debe contener al menos una letra minúscula.");
-                    return;
-                }
-
-                if (!password.matches(".*\\d.*")) {
-                    JOptionPane.showMessageDialog(this, "La contraseña debe contener al menos un número.");
-                    return;
-                }
-
-                if (!password.matches(".*[@#$%^&+=!].*")) {
-                    JOptionPane.showMessageDialog(this, "La contraseña debe contener al menos un carácter especial (@#$%^&+=!).");
-                    return;
-                }
-
-
-                // Conexión con el servidor y envío de datos
+                // Conexión con el servidor
                 cliente.conectar();
-                String passwordCifrada = UtilidadCifrado.cifrar(password); // Cifrar la contraseña
+                String respuesta = cliente.enviarRegistro(registro); // Enviar el objeto de registro al servidor
 
-                cliente.enviarMensaje("REGISTER;" + nombre + ";" + apellido + ";" + edad + ";" + email + ";" + usuario + ";" + passwordCifrada);
-
-                String respuesta = cliente.recibirRespuesta();
-                JOptionPane.showMessageDialog(this, respuesta);
+                String respuestaStr = (String) respuesta;
+                JOptionPane.showMessageDialog(this, respuestaStr);
+                if (respuestaStr.equals("REGISTRO_OK")) {
+                    new LoginView().setVisible(true); // Redirigir al login
+                    dispose();
+                }
 
                 cliente.cerrarConexion();
 
@@ -192,14 +148,15 @@ public class RegisterView extends JFrame {
                 JOptionPane.showMessageDialog(this, "Error inesperado: " + ex.getMessage());
             }
         });
-
-
-
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new RegisterView().setVisible(true);
+            try {
+                new RegisterView().setVisible(true);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 }

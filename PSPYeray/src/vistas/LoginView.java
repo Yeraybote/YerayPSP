@@ -1,17 +1,15 @@
 package vistas;
 
 import logica.Cliente;
-import logica.UtilidadCifrado;
+import logica.LoginRequest;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 
 public class LoginView extends JFrame {
 
-    public LoginView() {
+    public LoginView() throws Exception {
         // Configuración de la ventana principal
         setTitle("Inicio de Sesión");
         setSize(400, 300);
@@ -30,7 +28,7 @@ public class LoginView extends JFrame {
 
         // Campo de usuario
         JLabel usuarioLabel = new JLabel("Usuario:");
-        JTextField usuadioField = new JTextField(15);
+        JTextField usuarioField = new JTextField(15);
 
         // Campo de contraseña
         JLabel passLabel = new JLabel("Contraseña:");
@@ -50,16 +48,19 @@ public class LoginView extends JFrame {
         registerLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                // Lógica para abrir la vista de registro
-                new RegisterView().setVisible(true);
+                try {
+                    new RegisterView().setVisible(true);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null, "Error al abrir la vista de registro: " + ex.getMessage());
+                }
                 dispose(); // Cierra la ventana actual
             }
         });
 
-        // Panel de DNI y contraseña
+        // Panel de usuario y contraseña
         JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
         inputPanel.add(usuarioLabel);
-        inputPanel.add(usuadioField);
+        inputPanel.add(usuarioField);
         inputPanel.add(passLabel);
         inputPanel.add(passField);
 
@@ -75,52 +76,50 @@ public class LoginView extends JFrame {
         // Añadir panel principal a la ventana
         add(mainPanel);
 
-        // Parte del código en LoginView
+        // Instanciar cliente
         Cliente cliente = new Cliente("localhost", 12345);
 
+        // Acción del botón de iniciar sesión
         loginButton.addActionListener(e -> {
             try {
-                String usuario = usuadioField.getText();
+                String usuario = usuarioField.getText();
                 String password = new String(passField.getPassword());
 
-                // Validaciones de si los campos están vacíos, ya que las validaciones exausitvas se hacen a la hora de registrar
-                if (usuario.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "El campo de usuario no puede estar vacío.");
+                // Validaciones de los campos
+                if (usuario.isEmpty() || password.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Por favor, complete todos los campos.");
                     return;
                 }
 
-                if (password.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "El campo de contraseña no puede estar vacío.");
-                    return;
-                }
-
-                // Cifrar la contraseña
+                // Conectar al servidor y enviar el objeto
                 cliente.conectar();
-                String passwordCifrada = UtilidadCifrado.cifrar(password);
+                String respuesta = cliente.enviarLogin(usuario, password);
 
-                // Enviar datos al servidor
-                cliente.enviarMensaje("LOGIN;" + usuario + ";" + passwordCifrada);
-
-                // Respuesta del servidor
-                String respuesta = cliente.recibirRespuesta();
-                JOptionPane.showMessageDialog(this, respuesta);
+                if (respuesta.equals("LOGIN_OK")) {
+                    JOptionPane.showMessageDialog(this, "Inicio de sesión exitoso.");
+                    new IncidenciasView(usuario, cliente).setVisible(true);
+                    dispose(); // Cierra la ventana actual
+                } else {
+                    JOptionPane.showMessageDialog(this, respuesta);
+                }
 
                 cliente.cerrarConexion();
 
             } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Error al conectar con el servidor: " + ex.getMessage());
+                //JOptionPane.showMessageDialog(this, "Error al conectar con el servidor: " + ex.getMessage());
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error inesperado: " + ex.getMessage());
             }
         });
-
-
-
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new LoginView().setVisible(true);
+            try {
+                new LoginView().setVisible(true);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 }
