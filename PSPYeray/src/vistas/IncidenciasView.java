@@ -14,9 +14,11 @@ public class IncidenciasView extends JFrame {
     private JTextField lugarFisicoField;
     private JTextField empleadoField;
     private String empleado;
+    private Cliente cliente;
 
     public IncidenciasView(String empleado, Cliente cliente) {
         this.empleado = empleado;
+        this.cliente = cliente;
 
         // Configuración de la ventana principal
         setTitle("Crear Incidencia");
@@ -85,23 +87,33 @@ public class IncidenciasView extends JFrame {
 
                 try {
                     // Crear incidencia
-                    Incidencia incidencia = new Incidencia(descripcion, lugarFisico, empleado, cliente);
-
+                    Incidencia incidencia = new Incidencia(descripcion, lugarFisico, empleado);
                     // Serializar y firmar la incidencia
-                    String incidenciaSerializada = incidencia.toString();
-                    //String firma = Firmador.firmarMensaje(incidenciaSerializada, cliente.getClavePrivada());
+                    String incidenciaSerializada = incidencia.toJson();  // Usando un método para convertir a JSON
+                    String firma = Firmador.firmarMensaje(incidenciaSerializada, cliente.getClavePrivada());
+
+                    // Establecer la firma en la incidencia
+                    incidencia.setFirma(firma);
 
                     // Enviar incidencia al servidor
-                    Cliente.enviarIncidencia(incidencia, "localhost", 12345, cliente.getClavePrivada());
+                    System.out.println("Enviando incidencia al servidor...");
+                    System.out.println(incidencia);
+                    String respuesta = cliente.enviarIncidencia(incidencia);  // Enviar solo los datos necesarios
+                    System.out.println("Respuesta del servidor: " + respuesta);
 
                     // Recibir respuesta del servidor
-                    String respuesta = cliente.recibirRespuesta();
                     String[] partesRespuesta = respuesta.split(";");
 
                     if (partesRespuesta[0].equals("INCIDENCIA_OK")) {
                         String codigo = partesRespuesta[1];
                         String clasificacion = partesRespuesta[2];
-                        JOptionPane.showMessageDialog(null, "Incidencia registrada:\nCódigo: " + codigo + "\nClasificación: " + clasificacion);
+                        int horas = Integer.parseInt(partesRespuesta[3]);
+                        JOptionPane.showMessageDialog(null, "Incidencia registrada:\nCódigo: " + codigo + "\nClasificación: " + clasificacion + "\nHoras estimadas: " + horas);
+
+                        // Limpiar campos
+                        descripcionField.setText("");
+                        lugarFisicoField.setText("");
+
                     } else {
                         JOptionPane.showMessageDialog(null, "Error: " + partesRespuesta[0]);
                     }
@@ -110,13 +122,12 @@ public class IncidenciasView extends JFrame {
                 }
             }
         });
-
-
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        Cliente cliente = new Cliente("localhost", 12345);
         SwingUtilities.invokeLater(() -> {
-            new IncidenciasView("empleadoEjemplo", null).setVisible(true);
+            new IncidenciasView("empleadoEjemplo", cliente).setVisible(true);
         });
     }
 }
