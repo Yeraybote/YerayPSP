@@ -13,8 +13,8 @@ public class Cliente {
     private final String host;
     private final int puerto;
     private static Socket socket;
-    private PrintWriter salida;
-    private BufferedReader entrada;
+    private ObjectOutputStream salida;
+    private ObjectInputStream entrada;
     private KeyPair claves; // Claves del cliente
 
     public Cliente(String host, int puerto) throws Exception {
@@ -32,18 +32,18 @@ public class Cliente {
         return claves.getPublic();
     }
 
-    public void conectar() throws IOException {
+    public void conectar() throws IOException, ClassNotFoundException {
         socket = new Socket(host, puerto);
-        salida = new PrintWriter(socket.getOutputStream(), true);
-        entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-    }
+        salida = new ObjectOutputStream(socket.getOutputStream());
+        entrada = new ObjectInputStream(socket.getInputStream());
 
-    public void enviarMensaje(String mensaje) {
-        salida.println(mensaje);
-    }
+        // Enviar clave pública al servidor
+        salida.writeObject(claves.getPublic());
+        salida.flush();
 
-    public String recibirRespuesta() throws IOException {
-        return entrada.readLine();
+        // Recibir mensaje de confirmación del servidor
+        String respuesta = (String) entrada.readObject();
+        System.out.println("Respuesta del servidor: " + respuesta);
     }
 
     public void cerrarConexion() throws IOException {
@@ -58,6 +58,7 @@ public class Cliente {
 
             // Enviar la incidencia y la firma al servidor
             salida.writeObject(incidencia);
+            salida.flush();
 
             // Recibir respuesta del servidor
             respuesta = (String) entrada.readObject();
@@ -73,6 +74,7 @@ public class Cliente {
 
             // Crear el objeto RegisterRequest y enviarlo
             salida.writeObject(registro);
+            salida.flush();
 
             // Leer la respuesta del servidor
             respuesta = (String) entrada.readObject();
@@ -92,6 +94,7 @@ public class Cliente {
             password = UtilidadCifrado.cifrar(password);
             LoginRequest loginRequest = new LoginRequest(usuario, password);
             salida.writeObject(loginRequest);
+            salida.flush();
 
             // Leer la respuesta del servidor
             respuesta = (String) entrada.readObject();

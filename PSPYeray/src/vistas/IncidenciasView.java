@@ -89,7 +89,7 @@ public class IncidenciasView extends JFrame {
                     // Crear incidencia
                     Incidencia incidencia = new Incidencia(descripcion, lugarFisico, empleado);
                     // Serializar y firmar la incidencia
-                    String incidenciaSerializada = incidencia.toJson();  // Usando un método para convertir a JSON
+                    String incidenciaSerializada = incidencia.toJson();  // Usando un metodo para convertir a JSON
                     String firma = Firmador.firmarMensaje(incidenciaSerializada, cliente.getClavePrivada());
 
                     // Establecer la firma en la incidencia

@@ -93,6 +93,7 @@ public class LoginView extends JFrame {
 
                 // Conectar al servidor y enviar el objeto
                 cliente.conectar();
+
                 String respuesta = cliente.enviarLogin(usuario, password);
 
                 if (respuesta.equals("LOGIN_OK")) {

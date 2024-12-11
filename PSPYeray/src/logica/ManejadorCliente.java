@@ -12,7 +12,8 @@ class ManejadorCliente implements Runnable {
     private final Socket socket;
     private static final List<Usuario> usuarios = new ArrayList<>();
     private static int contadorIncidencias = 1;
-    private final RepositorioClavesPublicas repositorioClaves;
+    private static final String ALGORITMO_FIRMA = "SHA256withRSA";
+    private PublicKey clavePublica;
 
     // Bloque estático para inicializar usuarios base
     static {
@@ -21,9 +22,8 @@ class ManejadorCliente implements Runnable {
         usuarios.add(new Usuario("Luis", "Martinez", 22, "luis@example.com", "luis", "Luis123!"));
     }
 
-    public ManejadorCliente(Socket socket, RepositorioClavesPublicas repositorioClaves) {
+    public ManejadorCliente(Socket socket) {
         this.socket = socket;
-        this.repositorioClaves = repositorioClaves;
     }
 
     @Override
@@ -32,68 +32,66 @@ class ManejadorCliente implements Runnable {
                 ObjectOutputStream salida = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream entrada = new ObjectInputStream(socket.getInputStream())
         ) {
-            //while (!socket.isClosed()) {
-                try {
-                    // Leer un objeto del cliente
-                    Object objeto = entrada.readObject();
+            try {
+                // Leer un objeto del cliente
+                Object objeto = entrada.readObject();
 
-                    if (objeto instanceof LoginRequest) {
-                        // Procesar Login
-                        LoginRequest login = (LoginRequest) objeto;
-                        System.out.println("Usuario: " + login.getUsuario() + ", Contraseña: " + login.getPassword());
+                if (objeto instanceof LoginRequest) {
+                    System.out.println("LoginRequest recibido");
+                    // Procesar Login
+                    LoginRequest login = (LoginRequest) objeto;
+                    System.out.println("Usuario: " + login.getUsuario() + ", Contraseña: " + login.getPassword());
 
-                        if (validarLogin(login.getUsuario(), login.getPassword())) {
-                            salida.writeObject("LOGIN_OK");
-                        } else {
-                            salida.writeObject("Usuario o contraseña incorrectos");
-                        }
-
-                    } else if (objeto instanceof RegisterRequest) {
-                        // Procesar Registro
-                        RegisterRequest registro = (RegisterRequest) objeto;
-
-                        if (registrarUsuario(registro)) {
-                            salida.writeObject("REGISTRO_OK");
-                        } else {
-                            salida.writeObject("El usuario ya existe o los datos no son válidos");
-                        }
-
-                    } else if (objeto instanceof Incidencia) {
-                        // Procesar Incidencia
-                        Incidencia incidencia = (Incidencia) objeto;
-
-                        // Obtener la clave pública del empleado desde el repositorio
-                        PublicKey clavePublica = repositorioClaves.obtenerClavePublica(incidencia.getEmpleado());
-                        if (clavePublica == null) {
-                            salida.writeObject("CLAVE_PUBLICA_NO_ENCONTRADA");
-                            return;
-                        }
-
-                        System.out.println("Incidencia recibida: " + incidencia);
-
-                        if (verificarFirmaIncidencia(incidencia, incidencia.getFirma(), clavePublica)) {
-                            String codigo = generarCodigoUnico();
-                            String clasificacion = clasificarIncidencia(incidencia.getDescripcion());
-                            int horas = calcularHorasIncidencia(clasificacion);
-
-                            salida.writeObject("INCIDENCIA_OK;" + codigo + ";" + clasificacion + ";" + horas);
-                        } else {
-                            salida.writeObject("FIRMA_INVALIDA");
-                            /* String codigo = generarCodigoUnico();
-                            String clasificacion = clasificarIncidencia(incidencia.getDescripcion());
-                            int horas = calcularHorasIncidencia(clasificacion);
-
-                            salida.writeObject("INCIDENCIA_OK;" + codigo + ";" + clasificacion + ";" + horas);*/
-                        }
+                    if (validarLogin(login.getUsuario(), login.getPassword())) {
+                        salida.writeObject("LOGIN_OK");
                     } else {
-                        salida.writeObject("COMANDO_DESCONOCIDO");
+                        salida.writeObject("Usuario o contraseña incorrectos");
                     }
 
-                } catch (ClassNotFoundException e) {
-                    System.err.println("Error al procesar objeto: " + e.getMessage());
-                    salida.writeObject("ERROR_PROCESANDO_OBJETO");
+                } else if (objeto instanceof RegisterRequest) {
+                    // Procesar Registro
+                    RegisterRequest registro = (RegisterRequest) objeto;
+
+                    if (registrarUsuario(registro)) {
+                        salida.writeObject("REGISTRO_OK");
+                    } else {
+                        salida.writeObject("El usuario ya existe o los datos no son válidos");
+                    }
+
+                } else if (objeto instanceof Incidencia) {
+                    // Procesar Incidencia
+                    Incidencia incidencia = (Incidencia) objeto;
+                    System.out.println("Incidencia recibida: " + incidencia);
+
+                    if (verificarFirmaIncidencia(incidencia, incidencia.getFirma(), clavePublica)) {
+                        String codigo = generarCodigoUnico();
+                        String clasificacion = clasificarIncidencia(incidencia.getDescripcion());
+                        int horas = calcularHorasIncidencia(clasificacion);
+
+                        salida.writeObject("INCIDENCIA_OK;" + codigo + ";" + clasificacion + ";" + horas);
+                    } else {
+                        salida.writeObject("FIRMA_INVALIDA");
+                        /* String codigo = generarCodigoUnico();
+                        String clasificacion = clasificarIncidencia(incidencia.getDescripcion());
+                        int horas = calcularHorasIncidencia(clasificacion);
+
+                        salida.writeObject("INCIDENCIA_OK;" + codigo + ";" + clasificacion + ";" + horas);*/
+                    }
+                } else if (objeto instanceof PublicKey) {
+                    // Procesar Clave Pública
+                    this.clavePublica = (PublicKey) objeto;
+                    System.out.println("Clave pública recibida: " + clavePublica);
+
+                    //salida.writeObject("CLAVE_PUBLICA_OK");
                 }
-            //}
+                else {
+                    salida.writeObject("COMANDO_DESCONOCIDO");
+                }
+
+            } catch (ClassNotFoundException e) {
+                System.err.println("Error al procesar objeto: " + e.getMessage());
+                salida.writeObject("ERROR_PROCESANDO_OBJETO");
+            }
 
         } catch (IOException e) {
             System.err.println("Error al manejar cliente: " + e.getMessage());
